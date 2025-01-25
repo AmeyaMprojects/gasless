@@ -32,8 +32,7 @@ function App() {
   const connectWallet = async (accountIndex) => {
     try {
       // Initialize provider (connected to Hardhat node)
-      const provider = new ethers.providers.JsonRpcProvider("http://localhost:8545");
-
+      const provider = new ethers.JsonRpcProvider("http://localhost:8545");
       // Get the account from Hardhat's default accounts
       const account = HARDHAT_ACCOUNTS[accountIndex];
 

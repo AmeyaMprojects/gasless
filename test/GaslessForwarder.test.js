@@ -2,94 +2,100 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
 describe("GaslessForwarder", function () {
-    let forwarder, owner, user;
+  let GaslessForwarder;
+  let gaslessForwarder;
+  let owner, user, relayer, invalidSigner;
 
-    beforeEach(async function () {
-        // Deploy the contract
-        [owner, user] = await ethers.getSigners();
+  beforeEach(async function () {
+    [owner, user, relayer, invalidSigner] = await ethers.getSigners();
 
-        const GaslessForwarder = await ethers.getContractFactory("GaslessForwarder");
-        forwarder = await GaslessForwarder.deploy(); // Remove .deployed()
-    });
+    // Deploy the GaslessForwarder contract
+    GaslessForwarder = await ethers.getContractFactory("GaslessForwarder");
+    gaslessForwarder = await GaslessForwarder.deploy();
+    await gaslessForwarder.deployed(); // Wait for deployment to complete
+  });
 
-    it("Should increment nonce after successful execution", async function () {
-        // Get the initial nonce for the user
-        const nonceBefore = await forwarder.getNonce(user.address);
+  it("Should increment nonce after successful execution", async function () {
+    // Create a ForwardRequest
+    const request = {
+      from: user.address,
+      to: relayer.address,
+      value: 0,
+      gas: 1000000,
+      nonce: await gaslessForwarder.getNonce(user.address),
+      data: "0x", // Example data (can be ERC-20 or ERC-721 transfer data)
+    };
 
-        // Prepare a dummy meta-transaction
-        const req = {
-            from: user.address,
-            to: owner.address, // Send to the owner for simplicity
-            value: 0,
-            gas: 100000,
-            nonce: nonceBefore,
-            data: "0x", // No data for this test
-        };
+    // Get the EIP-712 domain
+    const domain = {
+      name: "GaslessForwarder",
+      version: "1",
+      chainId: (await ethers.provider.getNetwork()).chainId,
+      verifyingContract: gaslessForwarder.address,
+    };
 
-        // Sign the meta-transaction
-        const domain = {
-            name: "GaslessForwarder",
-            version: "1",
-            chainId: (await ethers.provider.getNetwork()).chainId,
-            verifyingContract: forwarder.address,
-        };
-        const types = {
-            ForwardRequest: [
-                { name: "from", type: "address" },
-                { name: "to", type: "address" },
-                { name: "value", type: "uint256" },
-                { name: "gas", type: "uint256" },
-                { name: "nonce", type: "uint256" },
-                { name: "data", type: "bytes" },
-            ],
-        };
-        const signature = await user._signTypedData(domain, types, req);
+    // Define the ForwardRequest type
+    const types = {
+      ForwardRequest: [
+        { name: "from", type: "address" },
+        { name: "to", type: "address" },
+        { name: "value", type: "uint256" },
+        { name: "gas", type: "uint256" },
+        { name: "nonce", type: "uint256" },
+        { name: "data", type: "bytes" },
+      ],
+    };
 
-        // Execute the meta-transaction
-        await forwarder.execute(req, signature);
+    // Sign the request using EIP-712
+    const signature = await user._signTypedData(domain, types, request);
 
-        // Check if the nonce was incremented
-        const nonceAfter = await forwarder.getNonce(user.address);
-        expect(nonceAfter).to.equal(nonceBefore.add(1));
-    });
+    // Execute the meta-transaction
+    await expect(
+      gaslessForwarder.connect(relayer).execute(request, signature)
+    ).to.emit(gaslessForwarder, "Forwarded");
 
-    it("Should revert if the signature is invalid", async function () {
-        // Get the initial nonce for the user
-        const nonceBefore = await forwarder.getNonce(user.address);
+    // Check if the nonce was incremented
+    const newNonce = await gaslessForwarder.getNonce(user.address);
+    expect(newNonce).to.equal(request.nonce + 1);
+  });
 
-        // Prepare a dummy meta-transaction
-        const req = {
-            from: user.address,
-            to: owner.address,
-            value: 0,
-            gas: 100000,
-            nonce: nonceBefore,
-            data: "0x",
-        };
+  it("Should revert if the signature is invalid", async function () {
+    // Create a ForwardRequest
+    const request = {
+      from: user.address,
+      to: relayer.address,
+      value: 0,
+      gas: 1000000,
+      nonce: await gaslessForwarder.getNonce(user.address),
+      data: "0x", // Example data (can be ERC-20 or ERC-721 transfer data)
+    };
 
-        // Sign the meta-transaction with a different signer (invalid signature)
-        const invalidSigner = owner; // Use owner instead of user
-        const domain = {
-            name: "GaslessForwarder",
-            version: "1",
-            chainId: (await ethers.provider.getNetwork()).chainId,
-            verifyingContract: forwarder.address,
-        };
-        const types = {
-            ForwardRequest: [
-                { name: "from", type: "address" },
-                { name: "to", type: "address" },
-                { name: "value", type: "uint256" },
-                { name: "gas", type: "uint256" },
-                { name: "nonce", type: "uint256" },
-                { name: "data", type: "bytes" },
-            ],
-        };
-        const invalidSignature = await invalidSigner._signTypedData(domain, types, req);
+    // Get the EIP-712 domain
+    const domain = {
+      name: "GaslessForwarder",
+      version: "1",
+      chainId: (await ethers.provider.getNetwork()).chainId,
+      verifyingContract: gaslessForwarder.address,
+    };
 
-        // Attempt to execute the meta-transaction with an invalid signature
-        await expect(forwarder.execute(req, invalidSignature)).to.be.revertedWith(
-            "Invalid signature"
-        );
-    });
+    // Define the ForwardRequest type
+    const types = {
+      ForwardRequest: [
+        { name: "from", type: "address" },
+        { name: "to", type: "address" },
+        { name: "value", type: "uint256" },
+        { name: "gas", type: "uint256" },
+        { name: "nonce", type: "uint256" },
+        { name: "data", type: "bytes" },
+      ],
+    };
+
+    // Sign the request using EIP-712 with an invalid signer
+    const signature = await invalidSigner._signTypedData(domain, types, request);
+
+    // Attempt to execute the meta-transaction (should revert)
+    await expect(
+      gaslessForwarder.connect(relayer).execute(request, signature)
+    ).to.be.revertedWith("Invalid signature");
+  });
 });

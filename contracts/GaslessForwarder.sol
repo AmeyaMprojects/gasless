@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+
 contract GaslessForwarder is EIP712 {
     using ECDSA for bytes32;
 
@@ -25,6 +26,8 @@ contract GaslessForwarder is EIP712 {
 
     // Events
     event Forwarded(address indexed from, address indexed to, bytes data, uint256 nonce);
+    event ERC20Transferred(address indexed token, address indexed from, address indexed to, uint256 amount);
+    event ERC721Transferred(address indexed token, address indexed from, address indexed to, uint256 tokenId);
 
     constructor() EIP712(SIGNING_DOMAIN, SIGNATURE_VERSION) {}
 
@@ -47,6 +50,15 @@ contract GaslessForwarder is EIP712 {
 
         // Emit an event for tracking
         emit Forwarded(req.from, req.to, req.data, _nonces[req.from]);
+
+        // Emit specific events for ERC-20 and ERC-721 transactions
+        if (isERC20Transfer(req.data)) {
+            (address recipient, uint256 amount) = decodeERC20Transfer(req.data);
+            emit ERC20Transferred(req.to, req.from, recipient, amount);
+        } else if (isERC721Transfer(req.data)) {
+            (address recipient, uint256 tokenId) = decodeERC721Transfer(req.data);
+            emit ERC721Transferred(req.to, req.from, recipient, tokenId);
+        }
     }
 
     // Verify the EIP-712 signature
@@ -66,5 +78,45 @@ contract GaslessForwarder is EIP712 {
         ).recover(signature);
 
         return signer == req.from;
+    }
+
+    // Helper function to check if the data is an ERC-20 transfer
+    function isERC20Transfer(bytes memory data) internal pure returns (bool) {
+        bytes4 selector = bytes4(data);
+        return selector == bytes4(keccak256("transfer(address,uint256)"));
+    }
+
+    // Helper function to decode ERC-20 transfer data
+    function decodeERC20Transfer(bytes memory data) internal pure returns (address, uint256) {
+        // Skip the first 4 bytes (function selector) and decode the rest
+        require(data.length >= 4 + 32 + 32, "Invalid data length for ERC-20 transfer");
+        address recipient;
+        uint256 amount;
+        assembly {
+            recipient := mload(add(data, 36)) // Skip 4 bytes (selector) + 32 bytes (offset)
+            amount := mload(add(data, 68))    // Skip 4 bytes (selector) + 64 bytes (offset)
+        }
+        return (recipient, amount);
+    }
+
+    // Helper function to check if the data is an ERC-721 transfer
+    function isERC721Transfer(bytes memory data) internal pure returns (bool) {
+        bytes4 selector = bytes4(data);
+        return selector == bytes4(keccak256("safeTransferFrom(address,address,uint256)"));
+    }
+
+    // Helper function to decode ERC-721 transfer data
+    function decodeERC721Transfer(bytes memory data) internal pure returns (address, uint256) {
+        // Skip the first 4 bytes (function selector) and decode the rest
+        require(data.length >= 4 + 32 + 32 + 32, "Invalid data length for ERC-721 transfer");
+        address from;
+        address recipient;
+        uint256 tokenId;
+        assembly {
+            from := mload(add(data, 36))      // Skip 4 bytes (selector) + 32 bytes (offset)
+            recipient := mload(add(data, 68)) // Skip 4 bytes (selector) + 64 bytes (offset)
+            tokenId := mload(add(data, 100))  // Skip 4 bytes (selector) + 96 bytes (offset)
+        }
+        return (recipient, tokenId);
     }
 }
