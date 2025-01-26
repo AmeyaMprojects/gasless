@@ -2,7 +2,10 @@ import { useState } from "react";
 import { ethers } from "ethers";
 import "./App.css";
 import GaslessForwarderAddress from "../../contracts/GaslessForwarder-address.json";
+<<<<<<< HEAD
+=======
 import GaslessForwarderABI from "../../artifacts/contracts/GaslessForwarder.sol/GaslessForwarder.json"; // Import the ABI
+>>>>>>> 8dc765b8465a57eba1d7228f899d39a51344b872
 
 const forwarderAddress = GaslessForwarderAddress.GaslessForwarder;
 console.log("Forwarder Address:", forwarderAddress);
