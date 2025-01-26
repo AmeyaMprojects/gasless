@@ -35,11 +35,13 @@ function App() {
     try {
       const provider = new ethers.JsonRpcProvider("http://localhost:8545");
       const account = HARDHAT_ACCOUNTS[accountIndex];
+  
+      // Create a signer using the private key
       const signer = new ethers.Wallet(account.privateKey, provider);
-
+  
       // Initialize the forwarder contract
       const forwarder = new ethers.Contract(forwarderAddress, GaslessForwarderABI.abi, signer);
-
+  
       setProvider(provider);
       setSigner(signer);
       setForwarder(forwarder);
@@ -57,35 +59,52 @@ function App() {
       setMessage("Wallet not connected.");
       return;
     }
-
+  
     try {
+      // Trim and validate the recipient address
+      const trimmedRecipient = recipient.trim();
+      if (!ethers.isAddress(trimmedRecipient)) {
+        setMessage("Invalid recipient address.");
+        return;
+      }
+  
       const nonce = await forwarder.getNonce(userAddress);
       let data;
-
+  
       if (transactionType === "ERC20") {
         const erc20Interface = new ethers.Interface([
           "function transfer(address to, uint256 amount)",
         ]);
-        data = erc20Interface.encodeFunctionData("transfer", [recipient, ethers.parseEther(amount)]);
+        data = erc20Interface.encodeFunctionData("transfer", [trimmedRecipient, ethers.parseEther(amount)]);
       } else if (transactionType === "ERC721") {
         const erc721Interface = new ethers.Interface([
           "function safeTransferFrom(address from, address to, uint256 tokenId)",
         ]);
-        data = erc721Interface.encodeFunctionData("safeTransferFrom", [userAddress, recipient, tokenId]);
+        data = erc721Interface.encodeFunctionData("safeTransferFrom", [userAddress, trimmedRecipient, tokenId]);
       } else {
         setMessage("Invalid transaction type.");
         return;
       }
-
+  
       const req = {
         from: userAddress,
-        to: recipient,
+        to: trimmedRecipient,
         value: 0,
         gas: 100000,
         nonce: nonce,
         data: data,
       };
-
+  
+      // Convert BigInt values to strings
+      const serializableReq = {
+        ...req,
+        value: req.value.toString(), // Convert BigInt to string
+        gas: req.gas.toString(),     // Convert BigInt to string
+        nonce: req.nonce.toString(), // Convert BigInt to string
+      };
+  
+      console.log("Serialized Request:", serializableReq); // Debugging
+  
       const domain = {
         name: "GaslessForwarder",
         version: "1",
@@ -102,14 +121,17 @@ function App() {
           { name: "data", type: "bytes" },
         ],
       };
-      const signature = await signer._signTypedData(domain, types, req);
-
+  
+      // Use signer.signTypedData instead of signer._signTypedData
+      const signature = await signer.signTypedData(domain, types, req);
+      console.log("Signature:", signature); // Debugging
+  
       const response = await fetch("http://localhost:3000/relay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ request: req, signature }),
+        body: JSON.stringify({ request: serializableReq, signature }), // Use serializableReq
       });
-
+  
       const result = await response.json();
       if (result.success) {
         setMessage(`Transaction successful! Tx Hash: ${result.txHash}`);
@@ -118,6 +140,7 @@ function App() {
       }
     } catch (error) {
       setMessage("Error sending transaction: " + error.message);
+      console.error("Error Details:", error); // Debugging
     }
   };
 
