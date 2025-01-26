@@ -2,11 +2,9 @@ import { useState } from "react";
 import { ethers } from "ethers";
 import "./App.css";
 
-// Replace with your contract address and ABI
-const FORWARDER_ADDRESS = "0xYourForwarderAddress"; // Replace with your deployed contract address
-const FORWARDER_ABI = [ /* Paste your contract ABI here */ ];
+const FORWARDER_ADDRESS = "0xYourForwarderAddress";
+const FORWARDER_ABI = [];
 
-// Hardhat default accounts (for testing)
 const HARDHAT_ACCOUNTS = [
   {
     address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
@@ -16,7 +14,6 @@ const HARDHAT_ACCOUNTS = [
     address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
     privateKey: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
   },
-  // Add more accounts as needed
 ];
 
 function App() {
@@ -26,23 +23,16 @@ function App() {
   const [userAddress, setUserAddress] = useState("");
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState("");
+  const [tokenId, setTokenId] = useState("");
+  const [transactionType, setTransactionType] = useState("ERC20");
   const [message, setMessage] = useState("");
 
-  // Simulate wallet connection using Hardhat accounts
   const connectWallet = async (accountIndex) => {
     try {
-      // Initialize provider (connected to Hardhat node)
       const provider = new ethers.JsonRpcProvider("http://localhost:8545");
-      // Get the account from Hardhat's default accounts
       const account = HARDHAT_ACCOUNTS[accountIndex];
-
-      // Create a signer using the private key
       const signer = new ethers.Wallet(account.privateKey, provider);
-
-      // Initialize the forwarder contract
       const forwarder = new ethers.Contract(FORWARDER_ADDRESS, FORWARDER_ABI, signer);
-
-      // Update state
       setProvider(provider);
       setSigner(signer);
       setForwarder(forwarder);
@@ -53,7 +43,6 @@ function App() {
     }
   };
 
-  // Send a gasless transaction
   const sendGaslessTransaction = async () => {
     if (!forwarder || !signer) {
       setMessage("Wallet not connected.");
@@ -61,18 +50,33 @@ function App() {
     }
 
     try {
-      // Prepare the meta-transaction
       const nonce = await forwarder.getNonce(userAddress);
+      let data;
+
+      if (transactionType === "ERC20") {
+        const erc20Interface = new ethers.Interface([
+          "function transfer(address to, uint256 amount)",
+        ]);
+        data = erc20Interface.encodeFunctionData("transfer", [recipient, ethers.parseEther(amount)]);
+      } else if (transactionType === "ERC721") {
+        const erc721Interface = new ethers.Interface([
+          "function safeTransferFrom(address from, address to, uint256 tokenId)",
+        ]);
+        data = erc721Interface.encodeFunctionData("safeTransferFrom", [userAddress, recipient, tokenId]);
+      } else {
+        setMessage("Invalid transaction type.");
+        return;
+      }
+
       const req = {
         from: userAddress,
         to: recipient,
         value: 0,
         gas: 100000,
         nonce: nonce,
-        data: "0x", // Replace with encoded function call (e.g., ERC-20 transfer)
+        data: data,
       };
 
-      // Sign the request
       const domain = {
         name: "GaslessForwarder",
         version: "1",
@@ -91,7 +95,6 @@ function App() {
       };
       const signature = await signer._signTypedData(domain, types, req);
 
-      // Send the signed transaction to the backend relayer
       const response = await fetch("http://localhost:3000/relay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -112,8 +115,6 @@ function App() {
   return (
     <div className="App">
       <h1>Gasless Transaction Forwarder</h1>
-
-      {/* Simulate wallet connection */}
       <div>
         <p>Select a Hardhat account to connect:</p>
         {HARDHAT_ACCOUNTS.map((account, index) => (
@@ -126,18 +127,48 @@ function App() {
       {userAddress && (
         <div>
           <p>Connected Wallet: {userAddress}</p>
+          <div>
+            <label>
+              <input
+                type="radio"
+                value="ERC20"
+                checked={transactionType === "ERC20"}
+                onChange={() => setTransactionType("ERC20")}
+              />
+              ERC-20
+            </label>
+            <label>
+              <input
+                type="radio"
+                value="ERC721"
+                checked={transactionType === "ERC721"}
+                onChange={() => setTransactionType("ERC721")}
+              />
+              ERC-721
+            </label>
+          </div>
           <input
             type="text"
             placeholder="Recipient Address"
             value={recipient}
             onChange={(e) => setRecipient(e.target.value)}
           />
-          <input
-            type="text"
-            placeholder="Amount"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
+          {transactionType === "ERC20" && (
+            <input
+              type="text"
+              placeholder="Amount"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+          )}
+          {transactionType === "ERC721" && (
+            <input
+              type="text"
+              placeholder="Token ID"
+              value={tokenId}
+              onChange={(e) => setTokenId(e.target.value)}
+            />
+          )}
           <button onClick={sendGaslessTransaction}>Send Gasless Transaction</button>
         </div>
       )}
