@@ -23,17 +23,7 @@ Clone the repository and install the dependencies:
 git clone https://github.com/AmeyaMprojects/gasless
 ```
 
-## Usage
 
-Try running some of the following tasks:
-
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat ignition deploy ./ignition/modules/Lock.js
-```
 
 ### Running Tests
 
@@ -48,7 +38,7 @@ npx hardhat test
 To deploy the contract, use the Hardhat Ignition module:
 
 ```shell
-npx hardhat ignition deploy ./ignition/modules/Lock.js
+npx hardhat run scripts/deploy.js --network localhost
 ```
 
 ## Project Structure
@@ -62,32 +52,39 @@ npx hardhat ignition deploy ./ignition/modules/Lock.js
 - `gasless-frontend/`: Contains the frontend files.
 
 
-## Procedure
+## Procedure ( after all the dependencies are installed )
+#### to note that the terminal we used is bash
 - In the root directory run the following command:
 ```shell
 npx hardhat node
 ```
-- Next in same root directtory run this command and copy the deployment address.
+- Now in a new terminal in same root directtory run this command and copy the deployment address.
 ```shell
 npx hardhat run scripts/deploy.js --network localhost
 ```
-- In the directory `gasless-backend/` update the `FORWARDER_ADDRESS` in the `.env` as deployment address and run the following command:
+- In the directory `gasless-backend/` update the `FORWARDER_ADDRESS` in the `.env` as deployment address and run the following command: 
+
+<!-- upate both env files  -->
+
+
+<!--  now  -->
+<!-- cd gassless-backend -->
 ```shell
 node index.js
 ```
+
+<!-- new terminal -->
 - In the directory `gasless-frontend/` run the following command:
 ```shell
 npm run dev
 ```
 - The frontend should now open in the default browser and can now proceed to do the transactions.
 - Choose any wallet and on the new page enter the recipient address and the ammount to be transacted.
+
+<!-- recipient address form the hardhat local server that we inits -->
 - You can get the Recipient address from the command that you ran peviously `npx hardhat run scripts/deploy.js --network localhost`, choose any one of the many adresses.
+<!-- somewhere write to change relayer private key too -->
 
+### future updates
 
-## Contributing
-
-Contributions are welcome! Please open an issue or submit a pull request.
-
-## License
-
-This project is licensed under the MIT License.
+dynamically update the recipient address and other details in the .env file
