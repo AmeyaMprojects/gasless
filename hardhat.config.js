@@ -10,7 +10,7 @@ module.exports = {
       accounts: [process.env.RELAYER_PRIVATE_KEY],
     },
     localhost: {
-      url: "http://127.0.0.1:8545", // Hardhat local network
+      url: "http://127.0.0.1:8545", 
       accounts: [process.env.RELAYER_PRIVATE_KEY],
     },
   },

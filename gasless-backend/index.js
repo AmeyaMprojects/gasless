@@ -15,7 +15,6 @@ const wallet = new ethers.Wallet(process.env.RELAYER_PRIVATE_KEY, provider);
 // Initialize the forwarder contract
 const forwarder = new ethers.Contract(process.env.FORWARDER_ADDRESS, GaslessForwarderABI.abi, wallet);
 
-// Root route
 app.get("/", (req, res) => {
   res.send("Gasless Transaction Relayer is running.");
 });
