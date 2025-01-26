@@ -2,90 +2,13 @@ import { useState } from "react";
 import { ethers } from "ethers";
 import "./App.css";
 import GaslessForwarderAddress from "../../contracts/GaslessForwarder-address.json";
+<<<<<<< HEAD
+=======
+import GaslessForwarderABI from "../../artifacts/contracts/GaslessForwarder.sol/GaslessForwarder.json"; // Import the ABI
+>>>>>>> 8dc765b8465a57eba1d7228f899d39a51344b872
 
 const forwarderAddress = GaslessForwarderAddress.GaslessForwarder;
 console.log("Forwarder Address:", forwarderAddress);
-const FORWARDER_ADDRESS = "0xYourForwarderAddress";
-const FORWARDER_ABI = [
-  {
-    "inputs": [],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
-  },
-  {
-    "inputs": [],
-    "name": "ECDSAInvalidSignature",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "length",
-        "type": "uint256"
-      }
-    ],
-    "name": "ECDSAInvalidSignatureLength",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "from",
-        "type": "address"
-      }
-    ],
-    "name": "getNonce",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "from",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "value",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "gas",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "nonce",
-        "type": "uint256"
-      },
-      {
-        "internalType": "bytes",
-        "name": "data",
-        "type": "bytes"
-      }
-    ],
-    "name": "execute",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  }
-];
 
 const HARDHAT_ACCOUNTS = [
   {
@@ -110,12 +33,16 @@ function App() {
   const [message, setMessage] = useState("");
   const [isWalletConnected, setIsWalletConnected] = useState(false);
 
+  // Connect wallet and initialize contract
   const connectWallet = async (accountIndex) => {
     try {
       const provider = new ethers.JsonRpcProvider("http://localhost:8545");
       const account = HARDHAT_ACCOUNTS[accountIndex];
       const signer = new ethers.Wallet(account.privateKey, provider);
-      const forwarder = new ethers.Contract(FORWARDER_ADDRESS, FORWARDER_ABI, signer);
+
+      // Initialize the forwarder contract
+      const forwarder = new ethers.Contract(forwarderAddress, GaslessForwarderABI.abi, signer);
+
       setProvider(provider);
       setSigner(signer);
       setForwarder(forwarder);
@@ -127,6 +54,7 @@ function App() {
     }
   };
 
+  // Send gasless transaction
   const sendGaslessTransaction = async () => {
     if (!forwarder || !signer) {
       setMessage("Wallet not connected.");
@@ -165,7 +93,7 @@ function App() {
         name: "GaslessForwarder",
         version: "1",
         chainId: (await provider.getNetwork()).chainId,
-        verifyingContract: FORWARDER_ADDRESS,
+        verifyingContract: forwarderAddress,
       };
       const types = {
         ForwardRequest: [
