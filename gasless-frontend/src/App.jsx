@@ -3,19 +3,8 @@ import { ethers } from "ethers";
 import "./App.css";
 import GaslessForwarderAddress from "../../contracts/GaslessForwarder-address.json";
 import GaslessForwarderABI from "../../artifacts/contracts/GaslessForwarder.sol/GaslessForwarder.json"; 
-const forwarderAddress = GaslessForwarderAddress.GaslessForwarder;
-console.log("Forwarder Address:", forwarderAddress);
 
-const HARDHAT_ACCOUNTS = [
-  {
-    address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-    privateKey: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
-  },
-  {
-    address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-    privateKey: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
-  },
-];
+const forwarderAddress = GaslessForwarderAddress.GaslessForwarder;
 
 function App() {
   const [provider, setProvider] = useState(null);
@@ -29,23 +18,26 @@ function App() {
   const [message, setMessage] = useState("");
   const [isWalletConnected, setIsWalletConnected] = useState(false);
 
-  // Connect wallet and initialize contract
-  const connectWallet = async (accountIndex) => {
+  // Connect wallet using MetaMask
+  const connectWallet = async () => {
+    if (typeof window.ethereum === "undefined") {
+      setMessage("MetaMask is not installed.");
+      return;
+    }
+
     try {
-      const provider = new ethers.JsonRpcProvider("http://localhost:8545");
-      const account = HARDHAT_ACCOUNTS[accountIndex];
-  
-      // Create a signer using the private key
-      const signer = new ethers.Wallet(account.privateKey, provider);
-  
-      // Initialize the forwarder contract
+      const ethereum = window.ethereum;
+      const provider = new ethers.providers.Web3Provider(ethereum);
+      const signer = provider.getSigner();
+
+      const userAddress = await signer.getAddress();
       const forwarder = new ethers.Contract(forwarderAddress, GaslessForwarderABI.abi, signer);
-  
+
       setProvider(provider);
       setSigner(signer);
       setForwarder(forwarder);
-      setUserAddress(account.address);
-      setMessage(`Wallet connected: ${account.address}`);
+      setUserAddress(userAddress);
+      setMessage(`Wallet connected: ${userAddress}`);
       setIsWalletConnected(true);
     } catch (error) {
       setMessage("Error connecting wallet: " + error.message);
@@ -58,18 +50,18 @@ function App() {
       setMessage("Wallet not connected.");
       return;
     }
-  
+
     try {
       // Trim and validate the recipient address
       const trimmedRecipient = recipient.trim();
-      if (!ethers.isAddress(trimmedRecipient)) {
+      if (!ethers.utils.isAddress(trimmedRecipient)) {
         setMessage("Invalid recipient address.");
         return;
       }
-  
+
       const nonce = await forwarder.getNonce(userAddress);
       let data;
-  
+
       if (transactionType === "ERC20") {
         const erc20Interface = new ethers.Interface([
           "function transfer(address to, uint256 amount)",
@@ -84,7 +76,7 @@ function App() {
         setMessage("Invalid transaction type.");
         return;
       }
-  
+
       const req = {
         from: userAddress,
         to: trimmedRecipient,
@@ -93,17 +85,16 @@ function App() {
         nonce: nonce,
         data: data,
       };
-  
-      // Convert BigInt values to strings
+
       const serializableReq = {
         ...req,
         value: req.value.toString(), // Convert BigInt to string
         gas: req.gas.toString(),     // Convert BigInt to string
         nonce: req.nonce.toString(), // Convert BigInt to string
       };
-  
-      console.log("Serialized Request:", serializableReq); // Debugging
-  
+
+      console.log("Serialized Request:", serializableReq);
+
       const domain = {
         name: "GaslessForwarder",
         version: "1",
@@ -120,17 +111,17 @@ function App() {
           { name: "data", type: "bytes" },
         ],
       };
-  
+
       // Use signer.signTypedData instead of signer._signTypedData
-      const signature = await signer.signTypedData(domain, types, req);
-      console.log("Signature:", signature); // Debugging
-  
+      const signature = await signer._signTypedData(domain, types, req);
+      console.log("Signature:", signature);
+
       const response = await fetch("http://localhost:3000/relay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ request: serializableReq, signature }), // Use serializableReq
       });
-  
+
       const result = await response.json();
       if (result.success) {
         setMessage(`Transaction successful! Tx Hash: ${result.txHash}`);
@@ -139,7 +130,7 @@ function App() {
       }
     } catch (error) {
       setMessage("Error sending transaction: " + error.message);
-      console.error("Error Details:", error); // Debugging
+      console.error("Error Details:", error); 
     }
   };
 
@@ -148,11 +139,7 @@ function App() {
       <h1>Gasless Transaction Forwarder</h1>
       {!isWalletConnected && (
         <div className="button-container">
-          {HARDHAT_ACCOUNTS.map((account, index) => (
-            <button key={index} onClick={() => connectWallet(index)}>
-              Connect Account {index + 1} ({account.address})
-            </button>
-          ))}
+          <button onClick={connectWallet}>Connect Wallet</button>
         </div>
       )}
 
