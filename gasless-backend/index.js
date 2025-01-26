@@ -15,23 +15,26 @@ const wallet = new ethers.Wallet(process.env.RELAYER_PRIVATE_KEY, provider);
 // Initialize the forwarder contract
 const forwarder = new ethers.Contract(process.env.FORWARDER_ADDRESS, GaslessForwarderABI.abi, wallet);
 
+// Root route
+app.get("/", (req, res) => {
+  res.send("Gasless Transaction Relayer is running.");
+});
+
 app.post("/relay", async (req, res) => {
   const { request, signature } = req.body;
 
+  console.log("Received relay request:", request);
+  console.log("Received signature:", signature);
+
   try {
-    const tx = await forwarder.execute(
-      request.from,
-      request.to,
-      request.value,
-      request.gas,
-      request.nonce,
-      request.data,
-      { gasLimit: 1000000 }
-    );
+    console.log("Executing transaction...");
+    const tx = await forwarder.execute(request, signature, { gasLimit: 1000000 });
     await tx.wait();
 
+    console.log("Transaction successful! Tx Hash:", tx.hash);
     res.send({ success: true, txHash: tx.hash });
   } catch (error) {
+    console.error("Error executing transaction:", error.message);
     res.status(500).send({ success: false, error: error.message });
   }
 });
