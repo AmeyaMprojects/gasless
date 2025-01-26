@@ -95,15 +95,14 @@ function App() {
         data: data,
       };
   
-      // Convert BigInt values to strings
       const serializableReq = {
         ...req,
-        value: req.value.toString(), // Convert BigInt to string
-        gas: req.gas.toString(),     // Convert BigInt to string
-        nonce: req.nonce.toString(), // Convert BigInt to string
+        value: req.value.toString(),
+        gas: req.gas.toString(),
+        nonce: req.nonce.toString(),
       };
   
-      console.log("Serialized Request:", serializableReq); // Debugging
+      console.log("Serialized Request:", serializableReq);
   
       const domain = {
         name: "GaslessForwarder",
@@ -121,15 +120,13 @@ function App() {
           { name: "data", type: "bytes" },
         ],
       };
-  
-      // Use signer.signTypedData instead of signer._signTypedData
       const signature = await signer.signTypedData(domain, types, req);
-      console.log("Signature:", signature); // Debugging
+      console.log("Signature:", signature);
   
       const response = await fetch("http://localhost:3000/relay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ request: serializableReq, signature }), // Use serializableReq
+        body: JSON.stringify({ request: serializableReq, signature }),
       });
   
       const result = await response.json();
@@ -140,7 +137,7 @@ function App() {
       }
     } catch (error) {
       setMessage("Error sending transaction: " + error.message);
-      console.error("Error Details:", error); // Debugging
+      console.error("Error Details:", error);
     }
   };
 
