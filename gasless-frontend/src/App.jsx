@@ -26,6 +26,7 @@ function App() {
   const [tokenId, setTokenId] = useState("");
   const [transactionType, setTransactionType] = useState("ERC20");
   const [message, setMessage] = useState("");
+  const [isWalletConnected, setIsWalletConnected] = useState(false);
 
   const connectWallet = async (accountIndex) => {
     try {
@@ -38,6 +39,7 @@ function App() {
       setForwarder(forwarder);
       setUserAddress(account.address);
       setMessage(`Wallet connected: ${account.address}`);
+      setIsWalletConnected(true);
     } catch (error) {
       setMessage("Error connecting wallet: " + error.message);
     }
@@ -115,36 +117,36 @@ function App() {
   return (
     <div className="App">
       <h1>Gasless Transaction Forwarder</h1>
-      <div>
-        <p>Select a Hardhat account to connect:</p>
-        {HARDHAT_ACCOUNTS.map((account, index) => (
-          <button key={index} onClick={() => connectWallet(index)}>
-            Connect Account {index + 1} ({account.address})
-          </button>
-        ))}
-      </div>
+      {!isWalletConnected && (
+        <div className="button-container">
+          {HARDHAT_ACCOUNTS.map((account, index) => (
+            <button key={index} onClick={() => connectWallet(index)}>
+              Connect Account {index + 1} ({account.address})
+            </button>
+          ))}
+        </div>
+      )}
 
-      {userAddress && (
+      {isWalletConnected && userAddress && (
         <div>
-          <p>Connected Wallet: {userAddress}</p>
-          <div>
-            <label>
+          <div className="radio-container">
+            <label className="radio-item">
               <input
                 type="radio"
                 value="ERC20"
                 checked={transactionType === "ERC20"}
                 onChange={() => setTransactionType("ERC20")}
               />
-              ERC-20
+              <span>ERC-20</span>
             </label>
-            <label>
+            <label className="radio-item">
               <input
                 type="radio"
                 value="ERC721"
                 checked={transactionType === "ERC721"}
                 onChange={() => setTransactionType("ERC721")}
               />
-              ERC-721
+              <span>ERC-721</span>
             </label>
           </div>
           <input

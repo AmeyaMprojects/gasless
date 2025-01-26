@@ -50,10 +50,16 @@ h1 {
   }
 }
 
+.button-container {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
 button {
   margin: 10px;
-  padding: 12px 24px;
-  font-size: 16px;
+  padding: 6px 12px;
+  font-size: 9px;
   cursor: pointer;
   background-color: #2575fc;
   color: white;
